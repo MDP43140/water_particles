@@ -1,0 +1,212 @@
+<html>
+<head>
+<title>Water Particle</title>
+<meta charset="UTF-8" name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0">
+<style>
+*{
+  margin:0;
+	font-family:Arial,Segoe UI;
+  padding:0;
+  box-sizing:border-box;
+  overflow:none;
+}
+
+canvas{
+  background:#111;
+  width:100%;
+  height:100%;
+}
+
+.option {
+  opacity:0.25;
+	text-shadow:2px 2px 2px #000;
+  margin:1;
+  position:absolute;
+  bottom:25px;
+  right:calc(50% - 200px);
+  min-width:400px;
+	padding:16px;
+  background:#555;
+  color:#fff;
+  border-radius:4px;
+  box-shadow:0 3px 4px 0 rgba(0,0,0,0.4),0 2px 8px 0 rgba(0,0,0,0.4);
+	transition:0.1s;
+}
+.option:hover, .option:focus, .option:active{opacity:0.8}
+
+.slider {
+  height:5px;
+  border-radius:2px;
+  background:#d3d3d3;
+  border:none;
+  outline:none;
+  box-shadow:0 0 0 0 rgba(0,0,0,0.4),0 2px 2px 0 rgba(0,0,0,0.4);
+  opacity:0.7;
+  transition:.2s;
+}
+.slider:hover {opacity:1;border-radius:5px;height:5px}
+.slider::-webkit-slider-thumb {
+  appearance:none;
+  width:20px;
+  height:20px;
+  background:#4CAF50;
+  border-radius:50%;
+	border:none;
+  box-shadow:0 0 0 0 rgba(0,0,0,0.4),0 2px 2px 0 rgba(0,0,0,0.4);
+  transition:.2s;
+}
+.slider::-webkit-slider-thumb:hover{width:20px;height:20px}
+.slider::-webkit-slider-thumb:active{background:#04B3D9;width:20px;height:20px}
+.slider::-moz-range-thumb:hover{width:20px;height:20px}
+.slider::-moz-range-thumb:active{background:#04B3D9;width:20px;height:20px}
+.slider::-moz-range-thumb {
+  width:10px;
+  height:10px;
+  background:#0078D7;
+  border-radius:50%;
+	border:none;
+  box-shadow:0 0 0 0 rgba(0,0,0,0.4),0 2px 2px 0 rgba(0,0,0,0.4);
+  transition:.2s;
+}
+button {
+  position:relative;/*Important*/
+  overflow:hidden;
+  outline:none;
+  border:none;
+  background:#fff;
+  color:#000;
+  border-radius:2px;
+  padding:4px 12px;
+  margin:8px;
+  font-size:12px;
+  box-shadow:0 3px 2px 0 rgba(0,0,0,0.4),0 2px 5px 0 rgba(0,0,0,0.24);
+	transition:0.2s
+}
+</style>
+</head>
+<body>
+<canvas id="particlecanvas" oncontextmenu="return false"></canvas>
+<div class="option">
+	<span style="font-size:20px">Graphics Settings:</span>
+	<span style="float:right;color:#ff0" id="fps_display"></span><br>
+	<span style="float:right;color:#ff0" id="particlescount_display"></span>
+	<p>FPS Limit: <input type="range" class="slider" min="1" max="60" value="40" oninput="fps = this.value;fps_displayset.innerHTML = this.value"> <span id="fps_displayset">40</span></p>
+	<p>Hue Color: <input type="range" class="slider" min="0" max="255" value="0" oninput="particle_colorhue = this.value;particlehue_displayset.innerHTML = this.value"> <span id="particlehue_displayset">0</span></p>
+	<p>Particle Size: <input type="range" class="slider" min="1" max="100" value="5" oninput="particle_size = this.value;particlesize_displayset.innerHTML = this.value"> <span id="particlesize_displayset">5</span></p>
+	<p>Particle Limit: <input type="range" class="slider" min="100" max="10000" value="500" oninput="particle_limit = this.value;particlelimit_displayset.innerHTML = this.value"> <span id="particlelimit_displayset">500</span></p>
+	<p>Particle Count: <input type="range" class="slider" min="1" max="1000" value="3" oninput="particle_count = this.value;particlecount_displayset.innerHTML = this.value"> <span id="particlecount_displayset">3</span></p>
+	<p>Physics Speed: <input type="range" class="slider" min="-5" max="5" value="1" step="0.1" oninput="physics_speed = this.value;physicsspeed_displayset.innerHTML = this.value"> <span id="physicsspeed_displayset">1</span></p>
+	<p>Motion Blur: <input type="range" class="slider" min="0" max="1" value="1" step="0.01" oninput="motion_blur = this.value;motionblur_displayset.innerHTML = this.value"> <span id="motionblur_displayset">1</span></p>
+	<p><input type="checkbox" onchange="particle_colorrgb = this.checked" checked> Allow Auto RGB Particle</p>
+	<p><input type="checkbox" onchange="particle_alloweraserect = !this.checked"> Prevent Canvas Deletion (Bad)</p>
+	<p><input type="checkbox" onchange="particle_preventcreate = this.checked"> Prevent Creating Particle</p>
+	<p><input type="checkbox" onchange="particle_stayon = this.checked"> Use Mouse Click (to summon particle)</p>
+	<button onclick="particles=[]">Reset Particles</button>
+	<p style="text-align:center" title="Made By MDP43140"><a href="https://github.com/mdp43140" style="text-decoration:none;color:#fff;cursor:default">Made By MDP43140</a></p>
+</div>
+<script>
+var fpsmeasure_then = new Date(),
+		fps = 40,
+		particle_count = 3,
+		particle_stayon = true,
+		particle_size = 5,
+		particle_limit = 500,
+		physics_speed = 1,
+		motion_blur = 1,
+		particle_colorhue = 0,
+		particle_colorrgb = true,
+		particle_alloweraserect = true,
+		particle_preventcreate = false,
+		mouse = {x:0,y:0,d:false},
+		canvas = document.getElementById("particlecanvas"),
+		ctx = canvas.getContext("2d"),
+		particles = [];
+window.onload = window.onresize = function(){
+	ctx.save();
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	ctx.restore();
+}
+
+function particle(){
+  if (!particle_preventcreate){
+		this.x = mouse.x;
+		this.y = mouse.y;
+		this.vx = 0.8 + Math.random() * 1.6 - 0.8 * 1.6;// 0.8 + Math.random() * 1
+		this.g = 1 + Math.random() * 3;
+		this.gS = 0.08 + Math.random() * 0.12;
+		this.hue_color = 'hsl('+particle_colorhue+',100%,50%)'
+	//this.hue_color = 'linear-gradient(135deg,hsl('+particle_colorhue+',100%,70%) 0%,hsl('+ Math.round(Math.random() * 255) +',100%,30%) 100%);'//Todo: Maybe u can add some "gradient color" on this thing so it would be cool ??
+		this.size = Math.random() * particle_size
+		this.angle = (10 + Math.random() * 20 - 10 * 20) * Math.PI / 180;
+		this.vAngle = (-this.vx) * Math.PI / 180; //1 + Math.random() * 2 - 1 * 2;
+		this.down = false;
+		this.shape = Math.round(Math.random()) == 1 ? "rect":"circle";
+  }
+  this.draw = function(){
+    ctx.fillStyle = this.hue_color;
+		if (this.shape == "circle"){
+		  ctx.beginPath();
+			ctx.arc(this.x,this.y,this.size/2,0,1,true);
+			ctx.fill();
+		} else {
+			// Bug Found: A bug found that causes position is not in the middle of the mouse.
+			//ctx.save();
+			//ctx.translate(this.x,this.y);
+			//ctx.rotate(this.angle);
+			ctx.fillRect(this.x - (this.size/2),this.y - (this.size/2),this.size,this.size);
+			//ctx.fillRect((this.size/2),(this.size/2),this.size,this.size);
+			//ctx.restore();
+		}
+  }
+}
+
+function draw(){
+  var fpsmeasure_now = new Date();
+  if (particle_alloweraserect && motion_blur > 0){
+		if (motion_blur < 1){
+			ctx.fillStyle = "rgba(0,0,0,"+motion_blur+")";
+			ctx.fillRect(0,0,canvas.width,canvas.height);
+		} else {
+			ctx.clearRect(0,0,canvas.width,canvas.height);
+		}
+	}
+  if (particle_colorrgb){particle_colorhue++}
+  if (mouse.down || !particle_preventcreate || particles.length < particle_limit){for (var i = 0;i < particle_count;i++){particles.push(new particle())}}
+  for (var i = 0;i < particles.length;i++){
+    var p = particles[i];
+		if (p.y > canvas.height || particles.length > particle_limit){
+			particles.splice(0,1)
+		} else {
+			p.x -= (p.vx*physics_speed);
+			if (p.down == true){
+				p.g += (p.gS*physics_speed);
+				p.y += (p.g*physics_speed);
+				p.angle += p.vAngle;
+			} else {
+				p.angle += (p.vAngle/2);
+				if (p.g < 0){
+					p.down = true;
+					p.g += (p.gS*physics_speed);
+					p.y += (p.g*physics_speed);
+				} else {
+					p.g -= (p.gS*physics_speed);
+					p.y -= (p.g*physics_speed);
+				}
+			}
+			p.draw();
+		}
+  }
+  particlescount_display.innerHTML = particles.length + " Particles"
+  var fpsdisplay = parseInt(1000 / (fpsmeasure_now - fpsmeasure_then));
+  fpsmeasure_then = fpsmeasure_now;
+  fps_display.innerHTML = fpsdisplay+"fps";
+  /*setTimeout(function(){*/window.requestAnimationFrame(draw)/*},500/fps)*/;
+}
+canvas.onmousedown = function(){mouse.d = true}
+window.onmousemove = function(e){e = e.touches ? e.touches[0]:e;mouse.x = e.clientX;mouse.y = e.clientY}
+window.onmouseup = function(){if (!particle_stayon){mouse.d = false}}
+draw()
+</script>
+</body>
+</html>
